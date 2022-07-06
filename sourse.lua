@@ -17,7 +17,7 @@ _BIOSNAME = "microBios"
 statusAllow = 1
 local init
 do
-    local p, c, m, t, s = computer, component, math, table, string
+    local p, c, m, t = computer, component, math, table
     local type, True, deviceinfo, depth, rx, ry, paletteSupported = type, true, p.getDeviceInfo() --type ипользуеться после загрузчи
 
     ------------------------------------------core
@@ -45,7 +45,7 @@ do
             v = m.abs(v)
             v = v % 256
     
-            str2 = str2 .. s.char(v)
+            str2 = str2 .. string.char(v)
             if #str2 == 16 then
                 local char = str2:byte(1)
                 rv1 = rv1 + char
@@ -56,7 +56,7 @@ do
         end
     
         while #str2 < 16 do
-            str2 = s.char(m.abs(rv3 + (rv2 * #str2)) % 256) .. str2
+            str2 = string.char(m.abs(rv3 + (rv2 * #str2)) % 256) .. str2
         end
     
         return str2
@@ -253,8 +253,8 @@ do
         gpu.setForeground(color or 1, not nonPalette and paletteSupported)
         setText(str)
         if err then
+            p.beep(120, 0)
             p.beep(80, 0)
-            p.beep(50, 0)
         end
         if time == True then
             setText("Press Enter To Continue", a, m.floor((ry / 2) + .5) + 1)
@@ -279,7 +279,7 @@ do
         local buffer = ""
         
         local function redraw()
-            status(str .. ": " .. (crypt and s.rep("*", #buffer) or buffer) .. "_", col or 5)
+            status(str .. ": " .. (crypt and string.rep("*", #buffer) or buffer) .. "_", col or 5)
         end
         redraw()
 
@@ -290,7 +290,7 @@ do
                     if eventData[4] == 28 then
                         return buffer
                     elseif eventData[3] >= 32 and eventData[3] <= 126 then
-                        buffer = buffer .. s.char(eventData[3])
+                        buffer = buffer .. string.char(eventData[3])
                         redraw()
                     elseif eventData[4] == 14 then
                         if #buffer > 0 then
@@ -440,7 +440,8 @@ do
                     end
                 end)
 
-                local webUtilitesList = getInternetFile"https://raw.githubusercontent.com/igorkll/microBios/main/weblist.txt"
+                --https://raw.githubusercontent.com/igorkll/microBios/main/weblist.txt
+                local webUtilitesList = getInternetFile"https://clck.ru/s55GH"
                 if webUtilitesList then
                     local parts = split(webUtilitesList, "\n")
                     for i, v in ipairs(parts) do
