@@ -405,15 +405,16 @@ do
     local function biosMenu()
         if getDataPart(5) == "" and not checkPassword() then shutdown() end
 
-        local mainmenu = createMenu("micro bios", 2)
+        local mainmenu = createMenu("Micro Bios", 2)
         mainmenu.a("Back", 4)
         mainmenu.a("Reboot", 4, function() shutdown(1) end)
         mainmenu.a("Shutdown", 4, shutdown)
 
         if internet then
-            mainmenu.a("Url Boot", 8, function()
-                local url = input("Url", a, 8)
-                if url then
+            mainmenu.a("Internet", 8, function()
+                local internetmenu = createMenu("Internet", 8)
+
+                local function urlboot(url)
                     status("Downloading Script", 8)
                     local data, err = getInternetFile(url)
                     if data then
@@ -430,6 +431,25 @@ do
                         status(err, 4, True, 1)
                     end
                 end
+
+                internetmenu.a("Url Boot", 8, function()
+                    local url = input("Url", a, 8)
+                    if url then
+                        urlboot(url)
+                    end
+                end)
+
+                local webUtilitesList = getInternetFile("https://raw.githubusercontent.com/igorkll/microBios/main/weblist.txt")
+                local parts = split(webUtilitesList, "\n")
+                for i, v in ipairs(parts) do
+                    local subparts = split(v, ";")
+                    internetmenu.a(subparts[1], 8, function()
+                        urlboot(subparts[2])
+                    end)
+                end
+
+                internetmenu.a("Back", 4)
+                internetmenu.l()
             end)
         end
 
