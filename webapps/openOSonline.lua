@@ -271,6 +271,7 @@ local function fs_name(path)
     return parts[#parts]
 end
 
+status("Downloading Filelist")
 local files = split(assert(getInternetFile(url .. "/filelist.txt")), "\n")
 local directorys = {}
 
@@ -282,20 +283,35 @@ local function inTable(tbl, data)
     end
 end
 
+local oldinterrupttime = computer.uptime()
+local function interrupt()
+    if computer.uptime() - oldinterrupttime > 1 then
+        oldinterrupttime = computer.uptime()
+        local eve = {computer.pullSignal(0.2)}
+        if #eve ~= 0 then
+            computer.pushSignal(table.unpack(eve))
+        end
+    end
+end
+
 for i, v in ipairs(files) do
+    status("Parse Filelist [" .. tostring(i) .. "/" .. #files .. "]")
     local path = v
     while true do
-        local path = fs_path(path)
-        if not inTable(files, path) then
+        path = fs_path(path)
+        if not inTable(directorys, path) then
             table.insert(directorys, path)
         end
         if path == "/" or path == "" then
             break
         end
+        interrupt()
     end
+    interrupt()
 end
 
 local function createFileStream(path, mode)
+    if not mode then mode = "rb" end
     if path:sub(1, 1) ~= "/" then path = "/" .. path end
     local stringControl
     if mode == "rb" then
@@ -319,47 +335,58 @@ local function createFileStream(path, mode)
     end
     obj.closed = false
     obj.stringControl = stringControl
+    obj.size = stringControl.len(obj.data)
 
     return obj
 end
+
+------------------------------------
 
 local fs = {}
 
 fs.open = createFileStream
 
 function fs.remove()
+    interrupt()
     return nil, "filesystem is readonly"
 end
 
 function fs.rename()
+    interrupt()
     return nil, "filesystem is readonly"
 end
 
 function fs.isReadOnly()
+    interrupt()
     return true
 end
 
 function fs.spaceUsed()
+    interrupt()
     return math.huge
 end
 
 function fs.spaceTotal()
+    interrupt()
     return math.huge
 end
 
 function fs.isDirectory(path)
+    interrupt()
     if path:sub(1, 1) ~= "/" then path = "/" .. path end
     if path:sub(#path, #path) == "/" then path = path:sub(1, #path - 1) end
     return inTable(directorys, path)
 end
 
 function fs.exists(path)
+    interrupt()
     if path:sub(#path, #path) ~= "/" then path = "/" .. path end
     if path:sub(#path, #path) == "/" then path = path:sub(1, #path - 1) end
     return inTable(files, path) or inTable(directorys, path)
 end
 
 function fs.list(path)
+    interrupt()
     if path:sub(#path, #path) ~= "/" then path = "/" .. path end
     if path:sub(#path, #path) ~= "/" then path = "/" .. path end
 
@@ -381,39 +408,59 @@ function fs.list(path)
 end
 
 function fs.lastModified(path)
+    interrupt()
     return -math.huge
 end
 
 function fs.getLabel()
+    interrupt()
     return "openOSonline"
 end
 
 function fs.setLabel()
+    interrupt()
     error("label is readonly")
 end
 
 function fs.size(path)
-    return #createFileStream(path).data
+    interrupt()
+    return #createFileStream(path, "rb").data
 end
 
 function fs.close(file)
+    interrupt()
     local old = file.closed
     file.closed = true
     return not old
 end
 
 function fs.read(file, bytes)
+    interrupt()
+    bytes = math.floor(bytes)
     if file.closed then return nil, "file closed" end
-    local data = file.stringControl(file.data, file.position + 1, file.position + bytes)
+    local endNumber = file.position + bytes
+    if endNumber == math.huge then
+        endNumber = file.size
+    end
+    local data = file.stringControl.sub(file.data, file.position + 1, endNumber)
     file.position = file.position + bytes
+    if file.position < 0 then
+        file.position = 0
+    end
+    if file.position > file.size then
+        file.position = math.floor(file.size)
+    end
     return data
 end
 
 function fs.write(file)
+    interrupt()
     return nil, "filesystem is readonly"
 end
 
 function fs.seek(file, mode, bytes)
+    interrupt()
+    bytes = math.floor(bytes)
     if file.closed then return nil, "file closed" end
     if file == "set" then
         file.position = bytes
@@ -422,13 +469,32 @@ function fs.seek(file, mode, bytes)
         if file.position < 0 then
             file.position = 0
         end
-        if file.position > #file.data then
-            file.position = #file.data
+        if file.position > file.size then
+            file.position = mayh.floor(file.size)
         end
+    elseif file == "get" then
+        return file.position
     else
         error("unsupported mode", 0)
     end
     return true
 end
 
-vcomponent.register(vcomponent.uuid(), "filesystem", fs, {})
+local address = vcomponent.uuid()
+
+computer.getBootAddress = function()
+    return address
+end
+
+computer.getBootFile = function()
+    return "/init.lua"
+end
+
+vcomponent.register(address, "filesystem", fs, {})
+
+local file = fs.open("/init.lua", "rb")
+local data = fs.read(file, math.huge)
+fs.close(file)
+
+status("booting")
+assert(load(data, '=init'))()
