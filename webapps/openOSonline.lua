@@ -1,3 +1,5 @@
+local internet = component.proxy(component.list("internet")())
+
 local proxylist = {}
 local proxyobjs = {}
 local typelist = {}
