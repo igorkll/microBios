@@ -518,7 +518,7 @@ do
                 end
 
                 if #files > 0 then
-                    mainmenu.a("boot", 1, function()
+                    mainmenu.a("Boot", 1, function()
                         local file = searchBootableFile(address)
                         if file then
                             pleasWait()
