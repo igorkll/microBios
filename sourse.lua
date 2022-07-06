@@ -234,7 +234,7 @@ do
     ------------------------------------------gui
 
     local function setText(str, posX, posY)
-        gpu.set((posX or 0) + math.floor(((rx / 2) - ((#str - 1) / 2)) + 0.5), posY or math.floor((ry / 2) + 0.5), str)
+        gpu.set((posX or 0) + math.floor(((rx / 2) - ((#str - 1) / 2)) + .5), posY or math.floor((ry / 2) + .5), str)
     end
 
     local function clear()
@@ -251,8 +251,12 @@ do
         clear()
         gpu.setForeground(color or 1, not nonPalette and paletteSupported)
         setText(str)
+        if err then
+            p.beep(80, 0)
+            p.beep(50, 0)
+        end
         if time == True then
-            setText("Press Enter To Continue", a, math.floor((ry / 2) + 0.5) + 1)
+            setText("Press Enter To Continue", a, math.floor((ry / 2) + .5) + 1)
             while 1 do
                 local eventData = {p.pullSignal()}
                 if eventData[1] == "key_down" and isValideKeyboard(eventData[2]) and eventData[4] == 28 then
@@ -417,13 +421,13 @@ do
                         if func then
                             local ok, err = pcall(func)
                             if not ok then
-                                status(err or "unknown error", 4, True)
+                                status(err or "unknown error", 4, True, 1)
                             end
                         else
-                            status(err, 4, True)
+                            status(err, 4, True, 1)
                         end
                     else
-                        status(err, 4, True)
+                        status(err, 4, True, 1)
                     end
                 end
             end)
@@ -502,7 +506,7 @@ do
                             setDataPart(3, file)
                             return 1
                         end
-                        status("Boot File Is Not Found", a, True)
+                        status("Boot File Is Not Found", a, True, 1)
                     end)
                 end
 
@@ -529,7 +533,7 @@ do
         mainmenu.l()
     end
 
-    p.beep(1000, 0.2)
+    p.beep(1500, 0.2)
 
     if rebootMode ~= "fast" and getDataPart(5) == "1" and (not screen or not checkPassword()) then --при fast reboot не будет спрашиваться пароль
         shutdown()
@@ -540,7 +544,7 @@ do
             biosMenu()
         elseif rebootMode ~= "fast" and #keyboards > 0 and status"Press Alt To Open The Bios Menu" then
             delay(1, function()
-                local eventData = {p.pullSignal(0.1)}
+                local eventData = {p.pullSignal(.1)}
                 if eventData[1] == "key_down" and isValideKeyboard(eventData[2]) and eventData[4] == 56 then
                     biosMenu()
                 end
@@ -575,7 +579,7 @@ do
             setDataPart(3, file)
             bootfs = c.proxy(bootaddress)
         else
-            status("Bootable Filesystem Is Not Found", a, True, 1)
+            status("Bootable Filesystem Is Not Found", a, True, 1, 1)
             shutdown()
         end
     end
@@ -594,7 +598,7 @@ do
     end
     bootfs.close(file2)
 
-    p.beep(1000, 0.2)
+    p.beep(1000, .2)
     init = load(buffer, "=init")
 end
 init()
