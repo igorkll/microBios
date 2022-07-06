@@ -274,7 +274,9 @@ local function fs_name(path)
     return parts[#parts]
 end
 
-status("Downloading Filelist")
+if status then
+    status("Downloading Filelist")
+end
 local files = split(assert(getInternetFile(url .. "/filelist.txt")), "\n")
 local directorys = {}
 
@@ -507,5 +509,14 @@ local file = fs.open("/init.lua", "rb")
 local data = fs.read(file, math.huge)
 fs.close(file)
 
-status("booting")
-assert(load(data, '=init'))()
+if status then status("booting") end
+local ok, err assert(load(data, '=init'))
+if not ok then
+    if status then
+        status(err or "unknown error")
+        while true do
+            computer_pullSignal()
+        end
+    end
+end
+computer.shutdown()
