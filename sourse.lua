@@ -1,6 +1,6 @@
 --[[
 --планируемые фичи
-загрузка в MineOS
+загрузка в MineOS(выпилил подмену eeprom.getData не будет работать, будет только если игорь тимофеев заюзает computer.getBootAddress)
 загрузка в разнае файлы /boot/kernel
 защита по паролю
 
@@ -439,7 +439,7 @@ do
                     end
                 end)
 
-                local webUtilitesList = getInternetFile("https://raw.githubusercontent.com/igorkll/microBios/main/weblist.txt")
+                local webUtilitesList = getInternetFile"https://raw.githubusercontent.com/igorkll/microBios/main/weblist.txt"
                 local parts = split(webUtilitesList, "\n")
                 for i, v in ipairs(parts) do
                     local subparts = split(v, ";")
