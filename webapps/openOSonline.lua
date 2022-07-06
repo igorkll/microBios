@@ -510,7 +510,7 @@ local data = fs.read(file, math.huge)
 fs.close(file)
 
 if status then status("booting") end
-local ok, err assert(load(data, '=init'))
+local ok, err pcall(assert(load(data, '=init')))
 if not ok then
     if status then
         status(err or "unknown error")
