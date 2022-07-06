@@ -288,9 +288,9 @@ end
 
 local oldinterrupttime = computer.uptime()
 local function interrupt()
-    if computer.uptime() - oldinterrupttime > 1 then
+    if computer.uptime() - oldinterrupttime > 3 then
         oldinterrupttime = computer.uptime()
-        local eve = {computer_pullSignal(0.2)}
+        local eve = {computer_pullSignal(0.1)}
         if #eve ~= 0 then
             computer_pushSignal(table.unpack(eve))
         end
@@ -376,7 +376,7 @@ end
 function fs.isDirectory(path)
     interrupt()
     if path:sub(1, 1) ~= "/" then path = "/" .. path end
-    if path:sub(#path, #path) == "/" then path = path:sub(1, #path - 1) end
+    if path:sub(#path, #path) ~= "/" then path = path .. "/" end
     return inTable(directorys, path)
 end
 
@@ -384,7 +384,11 @@ function fs.exists(path)
     interrupt()
     if path:sub(1, 1) ~= "/" then path = "/" .. path end
     if path:sub(#path, #path) == "/" then path = path:sub(1, #path - 1) end
-    return inTable(files, path) or inTable(directorys, path)
+    local ok1 = inTable(files, path)
+    if ok1 then return true end
+    if path:sub(#path, #path) ~= "/" then path = path .. "/" end
+    local ok2 = inTable(directorys, path)
+    return ok2
 end
 
 function fs.list(path)
@@ -401,7 +405,10 @@ function fs.list(path)
     end
     for i, v in ipairs(directorys) do
         if fs_path(v) == path then
-            table.insert(list, fs_name(v) .. "/")
+            local value = fs_name(v)
+            if value then
+                table.insert(list, value .. "/")
+            end
         end
     end
 
@@ -425,6 +432,8 @@ function fs.setLabel()
 end
 
 function fs.size(path)
+    if not fs.exists(path) then return nil, "file not found" end
+    if fs.isDirectory(path) then return nil, "is directory" end
     interrupt()
     return #createFileStream(path, "rb").data
 end
@@ -441,23 +450,18 @@ function fs.read(file, bytes)
     bytes = math.floor(bytes)
     if file.closed then return nil, "file closed" end
     
-    local startNumber = file.position + 1
-    local endNumber = file.position + bytes
+    local startNumber = file.position
+    local endNumber = (file.position + bytes) - 1
     if endNumber == math.huge then
         endNumber = file.size
     end
 
-    local data
-    if endNumber > file.size or startNumber > endNumber or startNumber > file.size then
-        data = nil
-    else
-        data = file.stringControl.sub(file.data, startNumber, endNumber)
+    local data = file.stringControl.sub(file.data, startNumber + 1, endNumber + 1)
+    file.position = file.position + bytes
+    if file.position > file.size then
+        file.position = file.size
     end
 
-    file.position = file.position + bytes
-    if file.position < 0 then
-        file.position = 0
-    end
     if data == "" then data = nil end
     return data
 end
@@ -481,12 +485,10 @@ function fs.seek(file, mode, bytes)
         if file.position > file.size then
             file.position = mayh.floor(file.size)
         end
-    elseif file == "get" then
-        return file.position
     else
         error("unsupported mode", 0)
     end
-    return true
+    return file.position
 end
 
 local address = vcomponent.uuid()
