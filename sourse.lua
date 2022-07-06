@@ -432,7 +432,7 @@ do
                     end
                 end
 
-                internetmenu.a("Url Boot", 8, function()
+                internetmenu.a("Url Boot", 3, function()
                     local url = input("Url", a, 8)
                     if url then
                         urlboot(url)
@@ -444,7 +444,7 @@ do
                     local parts = split(webUtilitesList, "\n")
                     for i, v in ipairs(parts) do
                         local subparts = split(v, ";")
-                        internetmenu.a(subparts[1], 8, function()
+                        internetmenu.a(subparts[1], 3, function()
                             urlboot(subparts[2])
                         end)
                     end
