@@ -13,11 +13,11 @@
 6.reboot mode
 ]]
 
-biosname = "microBios"
+_BIOSNAME = "microBios"
 statusAllow = 1
 local init
 do
-    local p, c = computer, component
+    local p, c, m, t, s = computer, component, math, table, string
     local type, True, deviceinfo, depth, rx, ry, paletteSupported = type, true, p.getDeviceInfo() --type ипользуеться после загрузчи
 
     ------------------------------------------core
@@ -26,7 +26,7 @@ do
         local rv1, rv2, rv3, str2, anys = 126, 1671, 7124, "", {}
 
         for i = 1, #str do
-            table.insert(anys, str:byte(i))
+            t.insert(anys, str:byte(i))
         end
     
         for i = 1, #str do
@@ -42,10 +42,10 @@ do
                 v = v + (v2 - (i * i2 * (rv1 - rv2)))
             end
     
-            v = math.abs(v)
+            v = m.abs(v)
             v = v % 256
     
-            str2 = str2 .. string.char(v)
+            str2 = str2 .. s.char(v)
             if #str2 == 16 then
                 local char = str2:byte(1)
                 rv1 = rv1 + char
@@ -56,7 +56,7 @@ do
         end
     
         while #str2 < 16 do
-            str2 = string.char(math.abs(rv3 + (rv2 * #str2)) % 256) .. str2
+            str2 = s.char(m.abs(rv3 + (rv2 * #str2)) % 256) .. str2
         end
     
         return str2
@@ -81,7 +81,7 @@ do
                 i = i + 1
             end
         end
-        if str:sub(#str - (#sep - 1), #str) == sep then table.insert(parts, "") end
+        if str:sub(#str - (#sep - 1), #str) == sep then t.insert(parts, "") end
         return parts
     end
 
@@ -97,7 +97,7 @@ do
             if not parts[i] then parts[i] = "" end
         end
         parts[part] = newdata
-        eeprom.setData(table.concat(parts, "\n"))
+        eeprom.setData(t.concat(parts, "\n"))
     end
 
     local function getBestGPUOrScreenAddress(componentType) --функцию подарил игорь тимофеев
@@ -185,7 +185,7 @@ do
         local handle, data, result, reason = internet.request(url), ""
         if handle then
             while 1 do
-                result, reason = handle.read(math.huge)	
+                result, reason = handle.read(m.huge)	
                 if result then
                     data = data .. result
                 else
@@ -215,26 +215,27 @@ do
     end
 
     if screen then
-        depth = math.floor(gpu.getDepth())
+        depth = m.floor(gpu.getDepth())
         rx, ry = gpu.getResolution()
 
         resetpalette()
         if paletteSupported then --индексация с 1 хотя начало у палитры с 0 потому что пре передаче light blue на первом мониторе всеравно должен быть белый
-            gpu.setPaletteColor(1, 0x7B68EE) --light blue
-            gpu.setPaletteColor(2, 0x1E90FF) --blue
-            gpu.setPaletteColor(3, 0x6B8E23) --green
-            gpu.setPaletteColor(4, 0x8B0000) --red
-            gpu.setPaletteColor(5, 0xDAA520) --yellow
-            gpu.setPaletteColor(6, 0) --black
-            gpu.setPaletteColor(7, 0xFFFFFF) --white
-            gpu.setPaletteColor(8, 0x00FF00) --lime
+            local setPaletteColor = gpu.setPaletteColor
+            setPaletteColor(1, 0x7B68EE) --light blue
+            setPaletteColor(2, 0x1E90FF) --blue
+            setPaletteColor(3, 0x6B8E23) --green
+            setPaletteColor(4, 0x8B0000) --red
+            setPaletteColor(5, 0xDAA520) --yellow
+            setPaletteColor(6, 0) --black
+            setPaletteColor(7, 0xFFFFFF) --white
+            setPaletteColor(8, 0xFF00) --lime
         end
     end
 
     ------------------------------------------gui
 
     local function setText(str, posX, posY)
-        gpu.set((posX or 0) + math.floor(((rx / 2) - ((#str - 1) / 2)) + .5), posY or math.floor((ry / 2) + .5), str)
+        gpu.set((posX or 0) + m.floor(((rx / 2) - ((#str - 1) / 2)) + .5), posY or m.floor((ry / 2) + .5), str)
     end
 
     local function clear()
@@ -256,7 +257,7 @@ do
             p.beep(50, 0)
         end
         if time == True then
-            setText("Press Enter To Continue", a, math.floor((ry / 2) + .5) + 1)
+            setText("Press Enter To Continue", a, m.floor((ry / 2) + .5) + 1)
             while 1 do
                 local eventData = {p.pullSignal()}
                 if eventData[1] == "key_down" and isValideKeyboard(eventData[2]) and eventData[4] == 28 then
@@ -278,7 +279,7 @@ do
         local buffer = ""
         
         local function redraw()
-            status(str .. ": " .. (crypt and string.rep("*", #buffer) or buffer) .. "_", col or 5)
+            status(str .. ": " .. (crypt and s.rep("*", #buffer) or buffer) .. "_", col or 5)
         end
         redraw()
 
@@ -289,7 +290,7 @@ do
                     if eventData[4] == 28 then
                         return buffer
                     elseif eventData[3] >= 32 and eventData[3] <= 126 then
-                        buffer = buffer .. string.char(eventData[3])
+                        buffer = buffer .. s.char(eventData[3])
                         redraw()
                     elseif eventData[4] == 14 then
                         if #buffer > 0 then
@@ -312,7 +313,7 @@ do
         local obj, elements, selectedNum = {}, {}, num or 1
 
         function obj.a(...) --str, color, func
-            table.insert(elements, {...})
+            t.insert(elements, {...})
         end
 
         local function draw()
@@ -511,12 +512,12 @@ do
 
                 for i = 2, 1, -1 do
                     if not proxy.exists(files[i]) then
-                        table.remove(files, i)
+                        t.remove(files, i)
                     end
                 end
 
                 for _, file in ipairs(proxy.list(path) or {}) do
-                    table.insert(files, path .. file)
+                    t.insert(files, path .. file)
                 end
 
                 if #files > 0 then
@@ -555,7 +556,7 @@ do
         mainmenu.l()
     end
 
-    p.beep(1500, 0.2)
+    p.beep(1500, .2)
 
     if rebootMode ~= "fast" and getDataPart(5) == "1" and (not screen or not checkPassword()) then --при fast reboot не будет спрашиваться пароль
         shutdown()
@@ -614,7 +615,7 @@ do
 
     local file2, buffer = assert(bootfs.open(file, "rb")), ""
     while 1 do
-        local read = bootfs.read(file2, math.huge)
+        local read = bootfs.read(file2, m.huge)
         if not read then break end
         buffer = buffer .. read
     end
