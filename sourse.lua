@@ -440,12 +440,14 @@ do
                 end)
 
                 local webUtilitesList = getInternetFile"https://raw.githubusercontent.com/igorkll/microBios/main/weblist.txt"
-                local parts = split(webUtilitesList, "\n")
-                for i, v in ipairs(parts) do
-                    local subparts = split(v, ";")
-                    internetmenu.a(subparts[1], 8, function()
-                        urlboot(subparts[2])
-                    end)
+                if webUtilitesList then
+                    local parts = split(webUtilitesList, "\n")
+                    for i, v in ipairs(parts) do
+                        local subparts = split(v, ";")
+                        internetmenu.a(subparts[1], 8, function()
+                            urlboot(subparts[2])
+                        end)
+                    end
                 end
 
                 internetmenu.a("Back", 4)
