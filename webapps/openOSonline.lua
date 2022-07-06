@@ -1,4 +1,7 @@
 local internet = component.proxy(component.list("internet")())
+local computer_pullSignal = computer.pullSignal
+local computer_pushSignal = computer.pushSignal
+local computer, component, unicode = computer, component, unicode
 
 local proxylist = {}
 local proxyobjs = {}
@@ -143,7 +146,7 @@ function vcomponent.register(address, ctype, proxy, doc)
   proxyobjs[address] = proxyobj
   typelist[address] = ctype
   doclist[address] = doc
-  computer.pushSignal("component_added",address,ctype)
+  computer_pushSignal("component_added",address,ctype)
   return true
 end
 
@@ -161,7 +164,7 @@ function vcomponent.unregister(address)
   proxyobjs[address] = nil
   typelist[address] = nil
   doclist[address] = nil
-  computer.pushSignal("component_removed",address,thetype)
+  computer_pushSignal("component_removed",address,thetype)
   return true
 end
 
@@ -287,15 +290,14 @@ local oldinterrupttime = computer.uptime()
 local function interrupt()
     if computer.uptime() - oldinterrupttime > 1 then
         oldinterrupttime = computer.uptime()
-        local eve = {computer.pullSignal(0.2)}
+        local eve = {computer_pullSignal(0.2)}
         if #eve ~= 0 then
-            computer.pushSignal(table.unpack(eve))
+            computer_pushSignal(table.unpack(eve))
         end
     end
 end
 
 for i, v in ipairs(files) do
-    status("Parse Filelist [" .. tostring(i) .. "/" .. #files .. "]")
     local path = v
     while true do
         path = fs_path(path)
@@ -380,26 +382,26 @@ end
 
 function fs.exists(path)
     interrupt()
-    if path:sub(#path, #path) ~= "/" then path = "/" .. path end
+    if path:sub(1, 1) ~= "/" then path = "/" .. path end
     if path:sub(#path, #path) == "/" then path = path:sub(1, #path - 1) end
     return inTable(files, path) or inTable(directorys, path)
 end
 
 function fs.list(path)
     interrupt()
-    if path:sub(#path, #path) ~= "/" then path = "/" .. path end
-    if path:sub(#path, #path) ~= "/" then path = "/" .. path end
+    if path:sub(1, 1) ~= "/" then path = "/" .. path end
+    if path:sub(#path, #path) ~= "/" then path = path .. "/" end
 
     local list = {}
 
     for i, v in ipairs(files) do
         if fs_path(v) == path then
-            table.insert(list, v)
+            table.insert(list, fs_name(v))
         end
     end
     for i, v in ipairs(directorys) do
         if fs_path(v) == path then
-            table.insert(list, v)
+            table.insert(list, fs_name(v) .. "/")
         end
     end
 
@@ -438,18 +440,25 @@ function fs.read(file, bytes)
     interrupt()
     bytes = math.floor(bytes)
     if file.closed then return nil, "file closed" end
+    
+    local startNumber = file.position + 1
     local endNumber = file.position + bytes
     if endNumber == math.huge then
         endNumber = file.size
     end
-    local data = file.stringControl.sub(file.data, file.position + 1, endNumber)
+
+    local data
+    if endNumber > file.size or startNumber > endNumber or startNumber > file.size then
+        data = nil
+    else
+        data = file.stringControl.sub(file.data, startNumber, endNumber)
+    end
+
     file.position = file.position + bytes
     if file.position < 0 then
         file.position = 0
     end
-    if file.position > file.size then
-        file.position = math.floor(file.size)
-    end
+    if data == "" then data = nil end
     return data
 end
 
