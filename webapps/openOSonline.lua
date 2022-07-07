@@ -3,6 +3,10 @@ local computer_pullSignal = computer.pullSignal
 local computer_pushSignal = computer.pushSignal
 local computer, component, unicode = computer, component, unicode
 
+local _, depth = pcall(component.invoke, computer.getBootGpu(), "getDepth")
+pcall(component.invoke, computer.getBootGpu(), "setDepth", 1)
+pcall(component.invoke, computer.getBootGpu(), "setDepth", depth)
+
 local proxylist = {}
 local proxyobjs = {}
 local typelist = {}
