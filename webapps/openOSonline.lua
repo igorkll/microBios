@@ -211,7 +211,7 @@ local function getInternetFile(url)--взято из mineOS efi от игорь 
     local handle, data, result, reason = internet.request(url), ""
     if handle then
         while 1 do
-            result, reason = handle.read(math.huge)	
+            result, reason = handle.read(math.huge)
             if result then
                 data = data .. result
             else

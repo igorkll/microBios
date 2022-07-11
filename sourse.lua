@@ -17,7 +17,7 @@ _BIOSNAME = "microBios"
 statusAllow = 1
 
 local p, c, m, t = computer, component, math, table
-local type, True, deviceinfo, depth, rx, ry, paletteSupported = type, true, p.getDeviceInfo() --type ипользуеться после загрузчи
+local deviceinfo, depth, rx, ry, paletteSupported = p.getDeviceInfo() --type ипользуеться после загрузчи
 
 ------------------------------------------core
 
@@ -33,12 +33,12 @@ local function hesh(str)
         if not old then old = str:byte(#str) end
         if not next then next = str:byte(1) end
 
-        local v = (old * rv1) + (next * rv2) + (current * rv3)
-        v = v + (i * rv2)
+        local v = old * rv1 + next * rv2 + current * rv3
+        v = v + i * rv2
         v = v * (rv3 - (#str - i))
 
         for i2, v2 in ipairs(anys) do
-            v = v + (v2 - (i * i2 * (rv1 - rv2)))
+            v = v + v2 - i * i2 * (rv1 - rv2)
         end
 
         v = m.abs(v)
@@ -55,7 +55,7 @@ local function hesh(str)
     end
 
     while #str2 < 16 do
-        str2 = string.char(m.abs(rv3 + (rv2 * #str2)) % 256) .. str2
+        str2 = string.char(m.abs(rv3 + rv2 * #str2) % 256) .. str2
     end
 
     return str2
@@ -70,7 +70,7 @@ local function split(str, sep)
     local parts, count, i = {}, 1, 1
     while 1 do
         if i > #str then break end
-        local char = str:sub(i, #sep + (i - 1))
+        local char = str:sub(i, i - 1 + #sep)
         if not parts[count] then parts[count] = "" end
         if char == sep then
             count = count + 1
@@ -92,7 +92,7 @@ local function setDataPart(part, newdata)
     if getDataPart(part) == newdata then return end
     if newdata:find"\n" then error"\\n char" end
     local parts = split(eeprom.getData(), "\n")
-    for i = part, 1, -1 do
+    for i = 1, part do
         if not parts[i] then parts[i] = "" end
     end
     parts[part] = newdata
@@ -100,29 +100,22 @@ local function setDataPart(part, newdata)
 end
 
 local function getBestGPUOrScreenAddress(componentType) --функцию подарил игорь тимофеев
-    local bestAddress, bestWidth, width
+    local bestWidth, bestAddress = 0
 
     for address in c.list(componentType) do
-        width = tonumber(deviceinfo[address].width)
+        local width = tonumber(deviceinfo[address].width)
         if c.type(componentType) == "screen" then
             if #c.invoke(address, "getKeyboards") > 0 then --экраны с кравиатурами имеют больший приоритет
                 width = width + 10
             end
         end
 
-        if not bestWidth or width > bestWidth then
+        if width > bestWidth then
             bestAddress, bestWidth = address, width
         end
     end
 
     return bestAddress
-end
-
-local function delay(time, func)
-    local inTime = p.uptime()
-    while p.uptime() - inTime < time do
-        func()
-    end
 end
 
 ------------------------------------------init
@@ -176,15 +169,16 @@ local function isValideKeyboard(address)
 end
 
 local function getLabel(address)
-    local proxy = c.proxy(address)
-    return proxy.getLabel() and (proxy.address:sub(1, 4) .. ":" .. proxy.getLabel()) or proxy.address:sub(1, 4)
+    --local proxy = c.proxy(address)
+    --return proxy.getLabel() and (proxy.address:sub(1, 4) .. ":" .. proxy.getLabel()) or proxy.address:sub(1, 4)
+    return t.concat({address:sub(1, 4), c.invoke(address, "getLabel")}, ":")
 end
 
 local function getInternetFile(url)--взято из mineOS efi от игорь тимофеев
-    local handle, data, result, reason = internet.request(url), ""
+    local handle, data = internet.request(url), ""
     if handle then
         while 1 do
-            result, reason = handle.read(m.huge)	
+            local result, reason = handle.read(m.huge)	
             if result then
                 data = data .. result
             else
@@ -207,14 +201,14 @@ end
 local function resetpalette()
     paletteSupported = a
     if depth > 1 then
-        paletteSupported = True
+        paletteSupported = true
         gpu.setDepth(1)
         gpu.setDepth(depth)
     end
 end
 
 if screen then
-    depth = m.floor(gpu.getDepth())
+    depth = gpu.getDepth()
     rx, ry = gpu.getResolution()
 
     resetpalette()
@@ -226,7 +220,7 @@ if screen then
         setPaletteColor(4, 0x8B0000) --red
         setPaletteColor(5, 0xDAA520) --yellow
         setPaletteColor(0, 0) --black
-        setPaletteColor(7, 0xFFFFFF) --white
+        setPaletteColor(7, -1) --white
         setPaletteColor(8, 0xFF00) --lime
     end
 end
@@ -234,44 +228,40 @@ end
 ------------------------------------------gui
 
 local function setText(str, posX, posY)
-    gpu.set((posX or 0) + m.floor(((rx / 2) - ((#str - 1) / 2)) + .5), posY or m.floor((ry / 2) + .5), str)
+    gpu.set((posX or 0) + m.floor(rx / 2 - ((#str - 1) / 2) + .5), posY or m.floor(ry / 2 + .5), str)
 end
 
 local function clear()
     gpu.setBackground(0)
-    gpu.setForeground(0xFFFFFF)
+    gpu.setForeground(-1)
     gpu.fill(1, 1, rx, ry, " ")
 end
 
 local function status(str, color, time, err, nonPalette)
-    if not screen then
-        if err then error(err, 0) end
-        return
-    end
-    clear()
-    gpu.setForeground(color or 1, not nonPalette and paletteSupported)
-    setText(str)
     if err then
         p.beep(120, 0)
         p.beep(80, 0)
     end
-    if time == True then
-        setText("Press Enter To Continue", a, m.floor((ry / 2) + .5) + 1)
-        while 1 do
-            local eventData = {p.pullSignal()}
-            if eventData[1] == "key_down" and isValideKeyboard(eventData[2]) and eventData[4] == 28 then
-                break
+    if screen then
+        clear()
+        gpu.setForeground(color or 1, not nonPalette and paletteSupported)
+        setText(str)
+        if time then
+            setText("Press Enter To Continue", a, m.floor(ry / 2 + .5) + 1)
+            while 1 do
+                local eventData = {p.pullSignal()}
+                if eventData[1] == "key_down" and isValideKeyboard(eventData[2]) and eventData[4] == 28 then
+                    break
+                end
             end
         end
-    elseif time then
-        delay(time, function()
-            p.pullSignal(0)
-        end)
+        return 1
+    elseif err then
+        error(err, 0)
     end
-    return 1
 end
 _G.status = function(str)--для лога загрузки openOSmod
-    status(str, 0xFFFFFF, a, a, 1)
+    status(str, -1, a, a, 1)
 end
 
 local function input(str, crypt, col)
@@ -308,8 +298,8 @@ local function input(str, crypt, col)
     end
 end
 
-local function createMenu(label, labelcolor, num)
-    local obj, elements, selectedNum = {}, {}, num or 1
+local function createMenu(label, labelcolor)
+    local obj, elements, selectedNum = {}, {}, 1
 
     function obj.a(...) --str, color, func
         t.insert(elements, {...})
@@ -412,13 +402,13 @@ local function biosMenu()
                     if func then
                         local ok, err = pcall(func)
                         if not ok then
-                            status(err or "unknown error", 4, True, 1)
+                            status(err or "unknown error", 4, 1, 1)
                         end
                     else
-                        status(err, 4, True, 1)
+                        status(err, 4, 1, 1)
                     end
                 else
-                    status(err, 4, True, 1)
+                    status(err, 4, 1, 1)
                 end
             end
 
@@ -500,10 +490,8 @@ local function biosMenu()
             local mainmenu, proxy, files, path = createMenu("Drive " .. label, 2), c.proxy(address),
             {"init.lua"}, "boot/kernel/"
 
-            for i = 2, 1, -1 do
-                if not proxy.exists(files[i]) then
-                    t.remove(files, i)
-                end
+            if not proxy.exists(files[1]) then
+                t.remove(files, 1)
             end
 
             for _, file in ipairs(proxy.list(path) or {}) do
@@ -519,7 +507,7 @@ local function biosMenu()
                         setDataPart(3, file)
                         return 1
                     end
-                    status("Boot File Is Not Found", a, True, 1)
+                    status("Boot File Is Not Found", a, 1, 1)
                 end)
             end
 
@@ -556,12 +544,13 @@ if screen then
     if rebootMode == "bios" then
         biosMenu()
     elseif rebootMode ~= "fast" and #keyboards > 0 and status"Press Alt To Open The Bios Menu" then
-        delay(1, function()
+        local inTime = p.uptime()
+        repeat
             local eventData = {p.pullSignal(.1)}
             if eventData[1] == "key_down" and isValideKeyboard(eventData[2]) and eventData[4] == 56 then
                 biosMenu()
             end
-        end)
+        until p.uptime() - inTime > 1
     end
 end
 
@@ -592,7 +581,7 @@ if not bootfs or not bootfs.exists(file) or bootfs.isDirectory(file) then
         setDataPart(3, file)
         bootfs = c.proxy(bootaddress)
     else
-        status("Bootable Filesystem Is Not Found", a, True, 1)
+        status("Bootable Filesystem Is Not Found", a, 1, 1)
         shutdown()
     end
 end
@@ -601,7 +590,7 @@ end
 
 if screen then resetpalette() end
 
-status("Boot To Drive " .. getLabel(bootaddress) .. " To File " .. file, 0xFFFFFF, a, a, 1)
+status("Boot To Drive " .. getLabel(bootaddress) .. " To File " .. file, -1, a, a, 1)
 
 local file2, buffer = assert(bootfs.open(file, "rb")), ""
 while 1 do
@@ -612,4 +601,6 @@ end
 bootfs.close(file2)
 
 p.beep(1000, .2)
-assert(load(buffer, "=init"))()
+local code, err = load(buffer, "=init")
+if not code then error(err, 0) end
+code()
